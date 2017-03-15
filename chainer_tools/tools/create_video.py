@@ -4,6 +4,7 @@ import cv2
 
 
 def create_video_from_files(img_fns, out_file):
+    img_fns.sort()
     imgs = []
     for img_fn in img_fns:
         imgs.append(cv2.imread(img_fn))
