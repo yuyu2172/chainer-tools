@@ -1,14 +1,19 @@
 import numpy as np
 from skimage.io import imread
 import cv2
+import os
 
 
-def create_video_from_files(img_fns, out_file):
+def create_video_from_files(img_fns, out_file, delete_imgs=False):
     img_fns.sort()
     imgs = []
     for img_fn in img_fns:
         imgs.append(cv2.imread(img_fn))
     create_video(imgs, out_file)
+
+    if delete_imgs:
+        for img_fn in img_fns:
+            os.remove(img_fn)
 
 
 def create_video(imgs, out_file):
