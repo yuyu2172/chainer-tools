@@ -5,6 +5,9 @@ import os
 
 
 def create_video_from_files(img_fns, out_file, delete_imgs=False):
+    dir_name = os.path.split(out_file)[0]
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     img_fns.sort()
     imgs = []
     for img_fn in img_fns:
