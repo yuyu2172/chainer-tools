@@ -1,14 +1,14 @@
 import chainer
-import h5py
 import numpy as np
 import os
+import pickle
 
 
 def cache_or_load_dataset(path, dataset=None):
     """Caches a dataset if it is not already cached, or loads it otherwise
 
     This caches a dataset at :obj:`path` if it has not been cached yet.
-    The dataset is cached by creating a hdf5 file containing data.
+    The dataset is cached by creating a numpy memmapped file containing data.
     This loads a dataset cached at :obj:`path` if the file previously
     created by this function already exists.
 
@@ -42,20 +42,19 @@ def cache_or_load_dataset(path, dataset=None):
 
 
 def _load_cached_dataset(path):
-    # When the driver was default, the multiprocess loading produced error
-    # when multiple processes accessed the same element.
-    # By making `driver` to 'core', the problem was solved.
-    h5py_data = h5py.File(path, driver='core', mode='r')
-    is_datum_tuple = h5py_data['is_datum_tuple'][0]
-    keys = h5py_data.keys()
-    keys.remove('is_datum_tuple')
-    keys.sort()
+    with open(path, 'rb') as f:
+        summary = pickle.load(f)
 
     dsets = []
-    for key in keys:
-        dsets.append(h5py_data[key])
+    for i in range(summary['length_datum']):
+        dset = np.memmap(path + '_{}'.format(i),
+                         mode='r',
+                         order='C',
+                         shape=summary['shapes'][i],
+                         dtype=summary['dtypes'][i])
+        dsets.append(dset)
 
-    if is_datum_tuple:
+    if summary['is_datum_tuple']:
         dataset = chainer.datasets.TupleDataset(*dsets)
     else:
         dataset = dsets[0]
@@ -71,18 +70,19 @@ def _cache_dataset(dataset, path):
     if not isinstance(datum, tuple):
         is_datum_tuple = False
         datum = (datum,)
-    
-    # When the driver was default, the multiprocess loading produced error
-    # when multiple processes accessed the same element.
-    # By making `driver` to 'core', the problem was solved.
-    f = h5py.File(path, driver='core', mode='w')
-    dset = f.create_dataset('is_datum_tuple', (1,), dtype=np.bool)
-    dset[0] = is_datum_tuple
 
     dsets = []
+    shapes = []
+    dtypes = []
     for i, value in enumerate(datum):
-        dset = f.create_dataset('{}'.format(i), (len(dataset),) + value.shape, dtype=value.dtype)
+        dset = np.memmap(
+            filename=path + '_{}'.format(i), mode='w+',
+            order='C',
+            shape=(len(dataset),) + value.shape,
+            dtype=value.dtype)
         dsets.append(dset)
+        shapes.append((len(dataset),) + value.shape)
+        dtypes.append(value.dtype)
 
     for idx in range(len(dataset)):
         datum = dataset[idx]
@@ -90,6 +90,15 @@ def _cache_dataset(dataset, path):
             datum = (datum,)
         for i, val in enumerate(datum):
             dsets[i][idx] = val
+
+    summary = {
+        'is_datum_tuple': is_datum_tuple,
+        'length_datum': len(datum),
+        'shapes': shapes,
+        'dtypes': dtypes
+    }
+    with open(path, 'wb') as f:
+        pickle.dump(summary, f)
 
     if is_datum_tuple:
         dataset = chainer.datasets.TupleDataset(*dsets)

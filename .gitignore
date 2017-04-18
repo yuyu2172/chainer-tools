@@ -1,3 +1,5 @@
 
 chainer_tools.egg-info/
 *.pyc
+
+.cache/
