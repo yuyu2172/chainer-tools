@@ -36,7 +36,7 @@ class VisdomReport(chainer.training.extension.Extension):
         # close all previously created states
         vis.close()
 
-        if global_dict is not None:
+        if self.global_dict is not None:
             self.global_dict['visdom'] = vis
             self.global_dict['visualize'] = True
 
@@ -45,5 +45,5 @@ class VisdomReport(chainer.training.extension.Extension):
         else:
             self.target(*in_vars)
 
-        if global_dict is not None:
+        if self.global_dict is not None:
             self.global_dict['visualize'] = False
