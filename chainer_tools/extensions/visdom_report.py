@@ -8,12 +8,14 @@ import visdom
 
 class VisdomReport(chainer.training.extension.Extension):
 
-    def __init__(self, iterator, target, global_dict,
-                 env_name_suffix=None):
+    def __init__(self, iterator, target, global_dict=None,
+                 env_name_suffix=None,
+                 pass_vis=False):
         self.iterator = copy.copy(iterator)
         self.target = target
         self.env_name_suffix = env_name_suffix
         self.global_dict = global_dict
+        self.pass_vis = pass_vis
 
     def __call__(self, trainer):
         device = trainer.updater.device
@@ -33,7 +35,15 @@ class VisdomReport(chainer.training.extension.Extension):
         vis = visdom.Visdom(env=env_name)
         # close all previously created states
         vis.close()
-        self.global_dict['visdom'] = vis
-        self.global_dict['visualize'] = True
-        self.target(*in_vars, vis=vis)
-        self.global_dict['visualize'] = False
+
+        if global_dict is not None:
+            self.global_dict['visdom'] = vis
+            self.global_dict['visualize'] = True
+
+        if self.pass_vis:
+            self.target(*in_vars, vis=vis)
+        else:
+            self.target(*in_vars)
+
+        if global_dict is not None:
+            self.global_dict['visualize'] = False
